@@ -7,6 +7,12 @@ making fitness app
   - exercise guide list/detail
   - plan list/detail
   - dashboard contribution heatmap
+
+## Local-First Phase Notes
+- Workout logs are stored locally in IndexedDB (device-local only).
+- In this phase, cross-device sync is intentionally out of scope.
+- Clearing browser storage can remove local workout data.
+- Premium limits in local-first mode are UI-level controls; strict anti-tamper is out of scope.
 gh auth status
 gh repo create
 

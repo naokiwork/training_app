@@ -1,7 +1,6 @@
 import { Heatmap } from "@/components/Heatmap";
 import { MetadataRow } from "@/components/MetadataRow";
 import { PageTabs } from "@/components/PageTabs";
-import { VolumeAnalytics } from "@/components/VolumeAnalytics";
 import { getUserIdFromCookieStore } from "@/lib/auth";
 import { isPremium } from "@/lib/entitlements";
 
@@ -35,7 +34,6 @@ export default async function HomePage() {
         ]}
       />
       <Heatmap />
-      <VolumeAnalytics />
     </section>
   );
 }

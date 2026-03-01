@@ -2,14 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { buildHeatmap } from "@/lib/localdb/heatmap";
 
 type Contribution = {
   date: string;
   sets: number;
-};
-type ContributionsResponse = {
-  data?: Contribution[];
-  error?: string;
 };
 
 function getLevel(sets: number, max: number) {
@@ -40,14 +37,8 @@ export function Heatmap() {
     async function load() {
       try {
         setError("");
-        const response = await fetch("/api/contributions", { cache: "no-store" });
-        if (!response.ok) {
-          setError("Failed to load heatmap.");
-          setLoading(false);
-          return;
-        }
-        const json = (await response.json()) as Contribution[] | ContributionsResponse;
-        setData(Array.isArray(json) ? json : (json.data ?? []));
+        const rows = (await buildHeatmap(84)) as Contribution[];
+        setData(rows);
       } catch {
         setError("Failed to load heatmap.");
       } finally {

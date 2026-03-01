@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { cacheExercises, getSessionDetail, upsertSessionWithDetails } from "@/lib/localdb/repo";
 
 type Exercise = {
   id: string;
@@ -22,22 +23,44 @@ type ExerciseBlock = {
   sets: SetRow[];
 };
 
-export type InitialSession = {
-  id: string;
-  date: string;
-  painFlag: boolean;
-  exercises: ExerciseBlock[];
-};
-
-export function EditLogForm({ initial }: { initial: InitialSession }) {
+export function EditLogForm({ sessionId }: { sessionId: string }) {
   const router = useRouter();
-  const [date, setDate] = useState(initial.date);
-  const [painFlag, setPainFlag] = useState(initial.painFlag);
+  const [date, setDate] = useState("");
+  const [painFlag, setPainFlag] = useState(false);
   const [exerciseSearch, setExerciseSearch] = useState("");
   const [exercises, setExercises] = useState<Exercise[]>([]);
-  const [blocks, setBlocks] = useState<ExerciseBlock[]>(initial.exercises);
+  const [blocks, setBlocks] = useState<ExerciseBlock[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [missing, setMissing] = useState(false);
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    async function loadInitial() {
+      const detail = await getSessionDetail(sessionId);
+      if (!detail) {
+        setMissing(true);
+        setLoaded(true);
+        return;
+      }
+      setDate(detail.date);
+      setPainFlag(detail.painFlag);
+      setBlocks(
+        detail.exercises.map((exerciseBlock) => ({
+          exerciseId: exerciseBlock.exerciseId,
+          exerciseName: exerciseBlock.exerciseName,
+          sets: exerciseBlock.sets.map((set) => ({
+            reps: set.reps,
+            rpe: set.rpe ?? "",
+            restSeconds: set.restSeconds ?? 90,
+            formQualityFlag: set.formQualityFlag,
+          })),
+        }))
+      );
+      setLoaded(true);
+    }
+    void loadInitial();
+  }, [sessionId]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -49,6 +72,7 @@ export function EditLogForm({ initial }: { initial: InitialSession }) {
       if (!response.ok) return;
       const data = (await response.json()) as Exercise[];
       setExercises(data);
+      await cacheExercises(data);
     }
     loadExercises();
     return () => controller.abort();
@@ -129,6 +153,7 @@ export function EditLogForm({ initial }: { initial: InitialSession }) {
     }
 
     const payload = {
+      id: sessionId,
       date,
       painFlag,
       exercises: blocks.map((block) => ({
@@ -143,21 +168,35 @@ export function EditLogForm({ initial }: { initial: InitialSession }) {
     };
 
     setIsSaving(true);
-    const response = await fetch(`/api/logs/${initial.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const result = (await response.json()) as { error?: string; date?: string };
-    setIsSaving(false);
-
-    if (!response.ok) {
-      setError(result.error ?? "Update failed.");
+    try {
+      const result = await upsertSessionWithDetails(payload);
+      setIsSaving(false);
+      router.push(`/log?date=${result.date ?? date}`);
+      router.refresh();
+    } catch {
+      setIsSaving(false);
+      setError("Update failed.");
       return;
     }
+  }
 
-    router.push(`/log?date=${result.date ?? date}`);
-    router.refresh();
+  if (!loaded) {
+    return <section className="space-y-4">Loading local session...</section>;
+  }
+
+  if (missing) {
+    return (
+      <section className="space-y-4">
+        <p className="text-sm text-rose-400">Session not found on this device.</p>
+        <button
+          type="button"
+          onClick={() => router.push("/log")}
+          className="rounded border border-slate-700 px-3 py-1 text-sm"
+        >
+          Back to Log
+        </button>
+      </section>
+    );
   }
 
   return (

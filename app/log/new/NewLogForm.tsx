@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { cacheExercises, upsertSessionWithDetails } from "@/lib/localdb/repo";
 
 type Exercise = {
   id: string;
@@ -20,14 +21,6 @@ type ExerciseBlock = {
   exerciseId: string;
   exerciseName: string;
   sets: SetRow[];
-};
-
-type ProgressionSuggestion = {
-  exerciseId: string;
-  exerciseName: string;
-  message: string;
-  lastAverageReps: number | null;
-  previousAverageReps: number | null;
 };
 
 function today() {
@@ -58,7 +51,6 @@ export function NewLogForm() {
   const [isSaving, setIsSaving] = useState(false);
   const [restTimerSeconds, setRestTimerSeconds] = useState<number | null>(null);
   const [restTimerLabel, setRestTimerLabel] = useState("");
-  const [progressionMap, setProgressionMap] = useState<Record<string, ProgressionSuggestion>>({});
 
   useEffect(() => {
     const controller = new AbortController();
@@ -75,6 +67,7 @@ export function NewLogForm() {
         }
         const data = (await response.json()) as Exercise[];
         setExercises(data);
+        await cacheExercises(data);
       } catch {
         setLoadError("Failed to load exercises.");
       }
@@ -87,35 +80,6 @@ export function NewLogForm() {
     () => blocks.reduce((sum, block) => sum + block.sets.length, 0),
     [blocks]
   );
-
-  useEffect(() => {
-    const ids = blocks.map((block) => block.exerciseId);
-    if (ids.length === 0) {
-      setProgressionMap({});
-      return;
-    }
-
-    const controller = new AbortController();
-    async function loadProgression() {
-      try {
-        const response = await fetch(`/api/progression?ids=${ids.join(",")}`, {
-          signal: controller.signal,
-        });
-        if (!response.ok) return;
-        const data = (await response.json()) as ProgressionSuggestion[];
-        const nextMap: Record<string, ProgressionSuggestion> = {};
-        for (const item of data) {
-          nextMap[item.exerciseId] = item;
-        }
-        setProgressionMap(nextMap);
-      } catch {
-        // ignore transient fetch errors; user can still log sessions
-      }
-    }
-    loadProgression();
-
-    return () => controller.abort();
-  }, [blocks]);
 
   function addExercise(exercise: Exercise) {
     setBlocks((prev) => {
@@ -214,20 +178,15 @@ export function NewLogForm() {
       })),
     };
 
-    const response = await fetch("/api/logs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const result = (await response.json()) as { error?: string; date?: string };
-    setIsSaving(false);
-
-    if (!response.ok) {
-      setError(result.error ?? "Could not save session.");
+    try {
+      const result = await upsertSessionWithDetails(payload);
+      setIsSaving(false);
+      router.push(`/log?date=${result.date ?? date}`);
+    } catch {
+      setIsSaving(false);
+      setError("Could not save session.");
       return;
     }
-
-    router.push(`/log?date=${result.date ?? date}`);
   }
 
   return (
@@ -294,15 +253,6 @@ export function NewLogForm() {
               Add Set
             </button>
           </div>
-          {progressionMap[block.exerciseId] ? (
-            <div className="mb-2 rounded border border-sky-900/70 bg-sky-950/40 p-2 text-xs text-sky-200">
-              <p>{progressionMap[block.exerciseId].message}</p>
-              <p className="mt-1 text-sky-300/90">
-                Last avg: {progressionMap[block.exerciseId].lastAverageReps ?? "-"} / Prev avg:{" "}
-                {progressionMap[block.exerciseId].previousAverageReps ?? "-"}
-              </p>
-            </div>
-          ) : null}
           <div className="space-y-2">
             {block.sets.map((set, setIndex) => (
               <div key={`${block.exerciseId}-${setIndex}`} className="grid gap-2 md:grid-cols-6">

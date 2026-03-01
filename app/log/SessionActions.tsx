@@ -3,13 +3,16 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { deleteSession } from "@/lib/localdb/repo";
 
 export function SessionActions({
   sessionId,
   date,
+  onDeleted,
 }: {
   sessionId: string;
   date: string;
+  onDeleted?: () => void;
 }) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
@@ -19,14 +22,16 @@ export function SessionActions({
     if (!confirm("Delete this session?")) return;
     setDeleting(true);
     setError("");
-    const response = await fetch(`/api/logs/${sessionId}`, { method: "DELETE" });
-    if (!response.ok) {
+    try {
+      await deleteSession(sessionId);
+    } catch {
       setError("Delete failed.");
       setDeleting(false);
       return;
     }
     router.push(`/log?date=${date}`);
-    router.refresh();
+    onDeleted?.();
+    setDeleting(false);
   }
 
   return (
