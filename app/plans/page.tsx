@@ -6,8 +6,7 @@ import { plans } from "@/data/plans";
 export const dynamic = "force-dynamic";
 
 export default async function PlansPage() {
-  const premium = false;
-  const visiblePlans = premium ? plans : plans.slice(0, 1);
+  const visiblePlans = plans;
 
   return (
     <section className="space-y-4">
@@ -20,11 +19,6 @@ export default async function PlansPage() {
         ]}
       />
       <h1 className="text-2xl font-bold">Workout Plans</h1>
-      {!premium ? (
-        <p className="rounded border border-amber-700/60 bg-amber-950/30 p-3 text-xs text-amber-300">
-          Free plan shows only starter plan in local-first mode.
-        </p>
-      ) : null}
       {visiblePlans.length === 0 ? (
         <div className="rounded border border-slate-800 p-4 text-sm text-slate-400">
           No plans available.
