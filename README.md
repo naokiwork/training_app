@@ -37,5 +37,5 @@ git add .
 cd ~/Git-Hub_repository/training_app
 git add .
 git commit -m "Update 変更内容"
-git push -u origin feature/multiple-changes
+git push -u origin feature/aman
 gh pr create --title "Update README and sort scripts" --body "READMEと手作業ソートシミュレーションのコードを更新しました。レビューお願いします。"
