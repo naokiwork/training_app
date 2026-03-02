@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { SidebarInfo } from "@/components/SidebarInfo";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 
 export default async function ExerciseDetailPage({
   params,
@@ -8,7 +8,7 @@ export default async function ExerciseDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const exercise = await prisma.exercise.findUnique({ where: { id } });
+  const exercise = await getPrisma().exercise.findUnique({ where: { id } });
   if (!exercise) notFound();
 
   return (

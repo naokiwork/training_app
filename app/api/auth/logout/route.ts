@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AUTH_COOKIE, logoutByToken } from "@/lib/auth";
+
+export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
+  const { AUTH_COOKIE, logoutByToken } = await import("@/lib/auth");
   const token = request.cookies.get(AUTH_COOKIE)?.value;
   if (token) {
     await logoutByToken(token);

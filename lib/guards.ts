@@ -1,7 +1,7 @@
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 
 export async function assertOwnsSession(userId: string, sessionId: string) {
-  const session = await prisma.workoutSession.findFirst({
+  const session = await getPrisma().workoutSession.findFirst({
     where: { id: sessionId, userId },
     select: { id: true },
   });

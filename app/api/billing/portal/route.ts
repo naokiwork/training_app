@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { logError } from "@/lib/monitor";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe";
 
 export async function POST(request: NextRequest) {
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
-    const sc = await prisma.stripeCustomer.findUnique({ where: { userId } });
+    const sc = await getPrisma().stripeCustomer.findUnique({ where: { userId } });
     if (!sc) {
       return NextResponse.json({ error: "No billing customer found." }, { status: 400 });
     }
