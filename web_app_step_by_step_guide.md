@@ -1,5 +1,9 @@
 # Calisthenics Web App Development Task Checklist
 
+> [!WARNING]
+> Legacy spec. Current implementation policy is no API and no environment variables.
+> Follow `lists_to_refer/no_api_no_env_full_migration_task_document.md` first.
+
 This is a numbered, short-task checklist you can execute directly.
 
 ## Work Status (Updated)

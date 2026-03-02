@@ -1,5 +1,9 @@
 # API実装が必要な項目だけの手順書（Current Codebase）
 
+> [!WARNING]
+> Legacy spec. Current implementation policy is no API and no environment variables.
+> Follow `lists_to_refer/no_api_no_env_full_migration_task_document.md` first.
+
 このドキュメントは、**API実装が必要な作業だけ**をステップ順でまとめた実行用手順書です。  
 UIのみの見た目調整は対象外です。
 

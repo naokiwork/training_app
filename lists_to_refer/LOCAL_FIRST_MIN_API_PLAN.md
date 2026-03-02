@@ -1,6 +1,10 @@
 畏まりました。以下に、Cursor にそのまま渡して実装できる形で、
 「WorkoutログをAPIなし（IndexedDB中心）＋ 課金は最小API（Stripe Webhook必須）」の設計と手順を 1本のMarkdown に統合してお渡しいたします。
 
+> [!WARNING]
+> Legacy spec. Current implementation policy is no API and no environment variables.
+> Follow `lists_to_refer/no_api_no_env_full_migration_task_document.md` first.
+
 このまま LOCAL_FIRST_MIN_API_PLAN.md として保存し、Cursor に共有くださいませ。
 
 ⸻

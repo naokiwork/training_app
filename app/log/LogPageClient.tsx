@@ -105,7 +105,7 @@ export function LogPageClient({
 
       {!premium ? (
         <p className="rounded border border-amber-700/60 bg-amber-950/30 p-3 text-xs text-amber-300">
-          Free plan: last 30 days only. Upgrade at <a className="underline" href="/pricing">/pricing</a>.
+          Free plan: last 30 days only (local-first mode).
         </p>
       ) : null}
 

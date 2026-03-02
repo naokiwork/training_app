@@ -1,5 +1,9 @@
 # Local-First + Min-API Implementation Task List
 
+> [!WARNING]
+> Legacy spec. Current implementation policy is no API and no environment variables.
+> Follow `lists_to_refer/no_api_no_env_full_migration_task_document.md` first.
+
 This checklist converts `LOCAL_FIRST_MIN_API_PLAN.md` into execution-ready implementation tasks.
 
 Scope:
