@@ -243,6 +243,14 @@ export async function getLatestSessionDetail() {
   return getSessionDetail(all[0].id);
 }
 
+export async function listRecentSessionDetails(limit = 8): Promise<LocalSessionDetail[]> {
+  const all = await listAllSessions();
+  all.sort((a, b) => b.updatedAt - a.updatedAt);
+  const picked = all.slice(0, Math.max(0, limit));
+  const details = await Promise.all(picked.map((session) => getSessionDetail(session.id)));
+  return details.filter((item): item is LocalSessionDetail => Boolean(item));
+}
+
 export async function saveQuickSession(exerciseId: string, reps: number, date = today()) {
   const result = await upsertSessionWithDetails({
     date,
