@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { cacheExercises, upsertSessionWithDetails } from "@/lib/localdb/repo";
+import { exercises as seedExercises } from "@/data/exercises";
+import { cacheExercises, listCachedExercises, upsertSessionWithDetails } from "@/lib/localdb/repo";
 
 type Exercise = {
   id: string;
   name: string;
-  category: string | null;
+  category?: string | null;
 };
 
 type SetRow = {
@@ -52,24 +53,26 @@ export function NewLogForm() {
   const [restTimerLabel, setRestTimerLabel] = useState("");
 
   useEffect(() => {
-    const controller = new AbortController();
     async function loadExercises() {
       try {
         setLoadError("");
-        const response = await fetch("/api/exercises", { signal: controller.signal });
-        if (!response.ok) {
-          setLoadError("Failed to load exercises.");
+        const cached = await listCachedExercises();
+        if (cached.length > 0) {
+          setExercises(cached);
           return;
         }
-        const data = (await response.json()) as Exercise[];
-        setExercises(data);
-        await cacheExercises(data);
+        const fallback = seedExercises.map((exercise) => ({
+          id: exercise.id,
+          name: exercise.name,
+          category: exercise.category,
+        }));
+        await cacheExercises(fallback);
+        setExercises(fallback);
       } catch {
         setLoadError("Failed to load exercises.");
       }
     }
     loadExercises();
-    return () => controller.abort();
   }, []);
 
   const totalSets = useMemo(

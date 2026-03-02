@@ -1,5 +1,3 @@
-import { getUserIdFromCookieStore } from "@/lib/auth";
-import { isPremium } from "@/lib/entitlements";
 import { LogPageClient } from "./LogPageClient";
 
 export default async function LogPage({
@@ -9,8 +7,7 @@ export default async function LogPage({
 }) {
   const params = (await searchParams) ?? {};
   const selectedDate = params.date ?? new Date().toISOString().slice(0, 10);
-  const userId = await getUserIdFromCookieStore();
-  const premium = userId ? await isPremium(userId) : false;
+  const premium = false;
 
   return <LogPageClient initialDate={selectedDate} premium={premium} />;
 }

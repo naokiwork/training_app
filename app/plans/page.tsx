@@ -1,15 +1,12 @@
 import Link from "next/link";
 import { PageTabs } from "@/components/PageTabs";
 import { StatusBadge } from "@/components/StatusBadge";
-import { getUserIdFromCookieStore } from "@/lib/auth";
-import { isPremium } from "@/lib/entitlements";
 import { plans } from "@/data/plans";
 
 export const dynamic = "force-dynamic";
 
 export default async function PlansPage() {
-  const userId = await getUserIdFromCookieStore();
-  const premium = userId ? await isPremium(userId) : false;
+  const premium = false;
   const visiblePlans = premium ? plans : plans.slice(0, 1);
 
   return (
@@ -25,7 +22,7 @@ export default async function PlansPage() {
       <h1 className="text-2xl font-bold">Workout Plans</h1>
       {!premium ? (
         <p className="rounded border border-amber-700/60 bg-amber-950/30 p-3 text-xs text-amber-300">
-          Free plan shows only starter plan. Upgrade at <a className="underline" href="/pricing">/pricing</a>.
+          Free plan shows only starter plan in local-first mode.
         </p>
       ) : null}
       {visiblePlans.length === 0 ? (

@@ -35,6 +35,12 @@ export async function cacheExercises(exercises: Array<{ id: string; name: string
   await tx.done;
 }
 
+export async function listCachedExercises() {
+  const db = await getLocalDb();
+  const rows = await db.getAll("exercises");
+  return rows.sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export async function getExerciseMapByIds(ids: string[]) {
   const db = await getLocalDb();
   const map = new Map<string, LocalExerciseCache>();
