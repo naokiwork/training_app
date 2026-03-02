@@ -21,6 +21,7 @@ export type LocalSet = {
   sessionExerciseId: string;
   setOrder: number;
   reps: number;
+  weightKg?: number;
   rpe?: number;
   restSeconds?: number;
   formQualityFlag: boolean;
@@ -37,6 +38,7 @@ export type LocalExerciseCache = {
 
 export type LocalSessionSetInput = {
   reps: number;
+  weightKg?: number;
   rpe?: number;
   restSeconds?: number;
   formQualityFlag?: boolean;
@@ -72,6 +74,7 @@ export type LocalSessionDetail = {
       id: string;
       setOrder: number;
       reps: number;
+      weightKg?: number;
       rpe?: number;
       restSeconds?: number;
       formQualityFlag: boolean;

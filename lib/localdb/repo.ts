@@ -7,6 +7,11 @@ import type {
   LocalSet,
   UpsertLocalSessionInput,
 } from "@/lib/localdb/types";
+import { calculateCurrentStreak } from "@/core/streak";
+import { countThisWeek, isTodayLogged } from "@/core/weeklyStats";
+
+const DAILY_COUNTS_KEY = "dailyCounts";
+const LAST_SET_DRAFT_KEY = "lastSetDraft";
 
 function createId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -17,6 +22,10 @@ function createId() {
 
 function normalizeDate(date: string) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
+  return new Date().toISOString().slice(0, 10);
+}
+
+function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
@@ -58,6 +67,7 @@ export async function upsertSessionWithDetails(input: UpsertLocalSessionInput) {
   const id = input.id ?? createId();
 
   const existing = await tx.objectStore("sessions").get(id);
+  const previousDate = existing?.date;
   const createdAt = existing?.createdAt ?? now;
 
   await tx.objectStore("sessions").put({
@@ -95,6 +105,7 @@ export async function upsertSessionWithDetails(input: UpsertLocalSessionInput) {
         sessionExerciseId,
         setOrder,
         reps: set.reps,
+        weightKg: typeof set.weightKg === "number" ? set.weightKg : undefined,
         rpe: typeof set.rpe === "number" ? set.rpe : undefined,
         restSeconds: typeof set.restSeconds === "number" ? set.restSeconds : undefined,
         formQualityFlag: Boolean(set.formQualityFlag),
@@ -105,11 +116,29 @@ export async function upsertSessionWithDetails(input: UpsertLocalSessionInput) {
   }
 
   await tx.done;
+  await ensureDailyCounts();
+  if (previousDate) await updateDailyCountForDate(previousDate);
+  await updateDailyCountForDate(normalizeDate(input.date));
+  const lastExercise = input.exercises[input.exercises.length - 1];
+  const lastSet = lastExercise?.sets[lastExercise.sets.length - 1];
+  if (lastExercise && lastSet) {
+    const exercise = await getLocalDb().then((db) => db.get("exercises", lastExercise.exerciseId));
+    await saveLastSetDraft({
+      exerciseId: lastExercise.exerciseId,
+      exerciseName: exercise?.name,
+      reps: lastSet.reps,
+      weightKg: lastSet.weightKg,
+      rpe: lastSet.rpe,
+      restSeconds: lastSet.restSeconds,
+      formQualityFlag: lastSet.formQualityFlag,
+    });
+  }
   return { id, date: normalizeDate(input.date) };
 }
 
 export async function deleteSession(sessionId: string) {
   const db = await getLocalDb();
+  const existing = await db.get("sessions", sessionId);
   const tx = db.transaction(["sessions", "sessionExercises", "sets"], "readwrite");
   const blocks = await tx.objectStore("sessionExercises").index("bySessionId").getAll(sessionId);
   for (const block of blocks) {
@@ -121,6 +150,8 @@ export async function deleteSession(sessionId: string) {
   }
   await tx.objectStore("sessions").delete(sessionId);
   await tx.done;
+  await ensureDailyCounts();
+  if (existing?.date) await updateDailyCountForDate(existing.date);
 }
 
 export async function listSessionsByDate(date: string) {
@@ -161,6 +192,7 @@ export async function getSessionDetail(sessionId: string): Promise<LocalSessionD
         id: set.id,
         setOrder: set.setOrder,
         reps: set.reps,
+        weightKg: set.weightKg,
         rpe: set.rpe,
         restSeconds: set.restSeconds,
         formQualityFlag: set.formQualityFlag,
@@ -197,4 +229,163 @@ export async function listRecentSessions(days: number): Promise<LocalSession[]> 
   const fromDate = from.toISOString().slice(0, 10);
   const toDate = to.toISOString().slice(0, 10);
   return listSessionsByDateRange(fromDate, toDate);
+}
+
+export async function listAllSessions(): Promise<LocalSession[]> {
+  const db = await getLocalDb();
+  return db.getAll("sessions");
+}
+
+export async function getLatestSessionDetail() {
+  const all = await listAllSessions();
+  if (all.length === 0) return null;
+  all.sort((a, b) => b.updatedAt - a.updatedAt);
+  return getSessionDetail(all[0].id);
+}
+
+export async function saveQuickSession(exerciseId: string, reps: number, date = today()) {
+  const result = await upsertSessionWithDetails({
+    date,
+    painFlag: false,
+    exercises: [{ exerciseId, sets: [{ reps, formQualityFlag: false, restSeconds: 90 }] }],
+  });
+  const exercise = await getLocalDb().then((db) => db.get("exercises", exerciseId));
+  await saveLastSetDraft({
+    exerciseId,
+    exerciseName: exercise?.name,
+    reps,
+    restSeconds: 90,
+    formQualityFlag: false,
+  });
+  return result;
+}
+
+export async function repeatLastSession(date = today()) {
+  const last = await getLatestSessionDetail();
+  if (!last) return null;
+  const result = await upsertSessionWithDetails({
+    date,
+    painFlag: last.painFlag,
+    notes: last.notes,
+    exercises: last.exercises.map((exercise) => ({
+      exerciseId: exercise.exerciseId,
+      sets: exercise.sets.map((set) => ({
+        reps: set.reps,
+        rpe: set.rpe,
+        restSeconds: set.restSeconds,
+        formQualityFlag: set.formQualityFlag,
+      })),
+    })),
+  });
+  return result;
+}
+
+type DailyCounts = Record<string, number>;
+
+async function readDailyCounts(): Promise<DailyCounts> {
+  const db = await getLocalDb();
+  const row = await db.get("meta", DAILY_COUNTS_KEY);
+  if (!row || typeof row.value !== "object" || !row.value) return {};
+  return row.value as DailyCounts;
+}
+
+async function writeDailyCounts(value: DailyCounts) {
+  const db = await getLocalDb();
+  await db.put("meta", { key: DAILY_COUNTS_KEY, value });
+}
+
+export async function ensureDailyCounts() {
+  const current = await readDailyCounts();
+  if (Object.keys(current).length > 0) return current;
+
+  const sessions = await listAllSessions();
+  const rebuilt: DailyCounts = {};
+  for (const session of sessions) {
+    rebuilt[session.date] = (rebuilt[session.date] ?? 0) + 1;
+  }
+  await writeDailyCounts(rebuilt);
+  return rebuilt;
+}
+
+export async function getDailyCounts() {
+  return ensureDailyCounts();
+}
+
+export async function updateDailyCountForDate(date: string) {
+  const normalized = normalizeDate(date);
+  const db = await getLocalDb();
+  const sessions = await db.getAllFromIndex("sessions", "byDate", normalized);
+  const counts = await ensureDailyCounts();
+  if (sessions.length === 0) {
+    delete counts[normalized];
+  } else {
+    counts[normalized] = sessions.length;
+  }
+  await writeDailyCounts(counts);
+}
+
+export async function getDashboardStats() {
+  const sessions = await listAllSessions();
+  const dates = sessions.map((session) => session.date);
+  return {
+    streak: calculateCurrentStreak(dates),
+    thisWeekCount: countThisWeek(dates),
+    todayLogged: isTodayLogged(dates),
+  };
+}
+
+export type LastSetDraft = {
+  exerciseId: string;
+  exerciseName?: string;
+  reps: number;
+  weightKg?: number;
+  rpe?: number;
+  restSeconds?: number;
+  formQualityFlag?: boolean;
+  updatedAt: number;
+};
+
+export async function saveLastSetDraft(input: Omit<LastSetDraft, "updatedAt">) {
+  const db = await getLocalDb();
+  await db.put("meta", {
+    key: LAST_SET_DRAFT_KEY,
+    value: {
+      ...input,
+      updatedAt: Date.now(),
+    } satisfies LastSetDraft,
+  });
+}
+
+export async function getLastSetDraft(): Promise<LastSetDraft | null> {
+  const db = await getLocalDb();
+  const row = await db.get("meta", LAST_SET_DRAFT_KEY);
+  if (!row || typeof row.value !== "object" || !row.value) return null;
+  return row.value as LastSetDraft;
+}
+
+export async function listRecentSetDrafts(limit = 3): Promise<LastSetDraft[]> {
+  const db = await getLocalDb();
+  const allSets = await db.getAll("sets");
+  allSets.sort((a, b) => b.updatedAt - a.updatedAt);
+  const picked = allSets.slice(0, Math.max(0, limit));
+
+  const sessionExerciseIds = picked.map((set) => set.sessionExerciseId);
+  const blocks = await Promise.all(sessionExerciseIds.map((id) => db.get("sessionExercises", id)));
+  const exerciseIds = blocks.map((block) => block?.exerciseId).filter((value): value is string => Boolean(value));
+  const exerciseMap = await getExerciseMapByIds(exerciseIds);
+
+  return picked.map((set, index) => {
+    const block = blocks[index];
+    const exercise = block ? exerciseMap.get(block.exerciseId) : undefined;
+    return {
+      exerciseId: block?.exerciseId ?? "unknown",
+      exerciseName: exercise?.name ?? "Unknown",
+      reps: set.reps,
+      weightKg: set.weightKg,
+      rpe: set.rpe,
+      restSeconds: set.restSeconds,
+      formQualityFlag: set.formQualityFlag,
+      updatedAt: set.updatedAt,
+    };
+  });
 }

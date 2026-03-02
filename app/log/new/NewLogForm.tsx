@@ -3,7 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { exercises as seedExercises } from "@/data/exercises";
-import { cacheExercises, listCachedExercises, upsertSessionWithDetails } from "@/lib/localdb/repo";
+import {
+  cacheExercises,
+  getLastSetDraft,
+  listCachedExercises,
+  listRecentSetDrafts,
+  repeatLastSession,
+  saveLastSetDraft,
+  saveQuickSession,
+  upsertSessionWithDetails,
+} from "@/lib/localdb/repo";
 
 type Exercise = {
   id: string;
@@ -13,6 +22,7 @@ type Exercise = {
 
 type SetRow = {
   reps: number;
+  weightKg: number | "";
   rpe: number | "";
   restSeconds: number;
   formQualityFlag: boolean;
@@ -32,12 +42,13 @@ function createDefaultSet(previous?: SetRow): SetRow {
   if (previous) {
     return {
       reps: previous.reps,
+      weightKg: previous.weightKg,
       rpe: previous.rpe,
       restSeconds: previous.restSeconds,
       formQualityFlag: false,
     };
   }
-  return { reps: 8, rpe: "", restSeconds: 90, formQualityFlag: false };
+  return { reps: 8, weightKg: "", rpe: "", restSeconds: 90, formQualityFlag: false };
 }
 
 export function NewLogForm() {
@@ -48,31 +59,54 @@ export function NewLogForm() {
   const [blocks, setBlocks] = useState<ExerciseBlock[]>([]);
   const [error, setError] = useState("");
   const [loadError, setLoadError] = useState("");
+  const [toast, setToast] = useState("");
+  const [draftExerciseId, setDraftExerciseId] = useState("");
+  const [draftReps, setDraftReps] = useState(8);
+  const [draftWeightKg, setDraftWeightKg] = useState<number | "">("");
+  const [draftRecentSets, setDraftRecentSets] = useState<
+    Array<{
+      exerciseId: string;
+      exerciseName?: string;
+      reps: number;
+      weightKg?: number;
+      restSeconds?: number;
+      rpe?: number;
+      formQualityFlag?: boolean;
+      updatedAt: number;
+    }>
+  >([]);
   const [isSaving, setIsSaving] = useState(false);
   const [restTimerSeconds, setRestTimerSeconds] = useState<number | null>(null);
   const [restTimerLabel, setRestTimerLabel] = useState("");
 
   useEffect(() => {
-    async function loadExercises() {
+    async function loadInitial() {
       try {
         setLoadError("");
         const cached = await listCachedExercises();
         if (cached.length > 0) {
           setExercises(cached);
-          return;
+        } else {
+          const fallback = seedExercises.map((exercise) => ({
+            id: exercise.id,
+            name: exercise.name,
+            category: exercise.category,
+          }));
+          await cacheExercises(fallback);
+          setExercises(fallback);
         }
-        const fallback = seedExercises.map((exercise) => ({
-          id: exercise.id,
-          name: exercise.name,
-          category: exercise.category,
-        }));
-        await cacheExercises(fallback);
-        setExercises(fallback);
+        const [lastDraft, recent] = await Promise.all([getLastSetDraft(), listRecentSetDrafts(3)]);
+        if (lastDraft) {
+          setDraftExerciseId(lastDraft.exerciseId);
+          setDraftReps(lastDraft.reps);
+          setDraftWeightKg(typeof lastDraft.weightKg === "number" ? lastDraft.weightKg : "");
+        }
+        setDraftRecentSets(recent);
       } catch {
         setLoadError("Failed to load exercises.");
       }
     }
-    loadExercises();
+    void loadInitial();
   }, []);
 
   const totalSets = useMemo(
@@ -142,6 +176,139 @@ export function NewLogForm() {
     return () => clearTimeout(timer);
   }, [restTimerSeconds]);
 
+  useEffect(() => {
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(""), 1800);
+    return () => clearTimeout(timer);
+  }, [toast]);
+
+  const selectedDraftExercise = useMemo(
+    () => exercises.find((item) => item.id === draftExerciseId) ?? null,
+    [draftExerciseId, exercises]
+  );
+
+  async function handleQuickLog(exerciseName: string, reps: number) {
+    const exercise = exercises.find((item) => item.name === exerciseName);
+    if (!exercise) {
+      setError(`${exerciseName} is not available.`);
+      return;
+    }
+    setError("");
+    setIsSaving(true);
+    try {
+      await saveQuickSession(exercise.id, reps, date);
+      setToast(`Saved quick log: ${exerciseName} ${reps} reps`);
+      setDraftRecentSets(await listRecentSetDrafts(3));
+    } catch {
+      setError("Could not save quick log.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleRepeatLast() {
+    setError("");
+    setIsSaving(true);
+    try {
+      const result = await repeatLastSession(date);
+      if (!result) {
+        setError("No previous session to repeat.");
+        return;
+      }
+      setToast("Repeated your last session.");
+      setDraftRecentSets(await listRecentSetDrafts(3));
+    } catch {
+      setError("Could not repeat last session.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleRepeatLastSet() {
+    const draft = await getLastSetDraft();
+    if (!draft) {
+      setError("No last set found.");
+      return;
+    }
+    if (!draft.exerciseId || draft.exerciseId === "unknown") {
+      setError("Last set exercise is not available.");
+      return;
+    }
+    setError("");
+    setIsSaving(true);
+    try {
+      await upsertSessionWithDetails({
+        date,
+        painFlag: false,
+        exercises: [
+          {
+            exerciseId: draft.exerciseId,
+            sets: [
+              {
+                reps: draft.reps,
+                weightKg: draft.weightKg,
+                rpe: draft.rpe,
+                restSeconds: draft.restSeconds ?? 90,
+                formQualityFlag: draft.formQualityFlag ?? false,
+              },
+            ],
+          },
+        ],
+      });
+      setDraftExerciseId(draft.exerciseId);
+      setDraftReps(draft.reps);
+      setDraftWeightKg(typeof draft.weightKg === "number" ? draft.weightKg : "");
+      setDraftRecentSets(await listRecentSetDrafts(3));
+      setToast("Saved: repeated last set");
+    } catch {
+      setError("Could not repeat last set.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleSaveDraftSet() {
+    if (!draftExerciseId) {
+      setError("Select an exercise for draft set.");
+      return;
+    }
+    setError("");
+    setIsSaving(true);
+    try {
+      await upsertSessionWithDetails({
+        date,
+        painFlag: false,
+        exercises: [
+          {
+            exerciseId: draftExerciseId,
+            sets: [
+              {
+                reps: draftReps,
+                weightKg: typeof draftWeightKg === "number" ? draftWeightKg : undefined,
+                restSeconds: 90,
+                formQualityFlag: false,
+              },
+            ],
+          },
+        ],
+      });
+      await saveLastSetDraft({
+        exerciseId: draftExerciseId,
+        exerciseName: selectedDraftExercise?.name,
+        reps: draftReps,
+        weightKg: typeof draftWeightKg === "number" ? draftWeightKg : undefined,
+        restSeconds: 90,
+        formQualityFlag: false,
+      });
+      setDraftRecentSets(await listRecentSetDrafts(3));
+      setToast("Saved");
+    } catch {
+      setError("Could not save draft set.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function saveLog() {
     setError("");
     if (blocks.length === 0 || totalSets === 0) {
@@ -159,6 +326,10 @@ export function NewLogForm() {
           setError("Rest seconds must be between 0 and 3600.");
           return;
         }
+        if (set.weightKg !== "" && (set.weightKg < 0 || set.weightKg > 1000)) {
+          setError("Weight must be between 0 and 1000kg.");
+          return;
+        }
       }
     }
 
@@ -170,6 +341,7 @@ export function NewLogForm() {
         exerciseId: block.exerciseId,
         sets: block.sets.map((set) => ({
           reps: set.reps,
+          weightKg: set.weightKg === "" ? undefined : Number(set.weightKg),
           rpe: set.rpe === "" ? undefined : Number(set.rpe),
           restSeconds: set.restSeconds,
           formQualityFlag: set.formQualityFlag,
@@ -190,6 +362,11 @@ export function NewLogForm() {
 
   return (
     <section className="space-y-4">
+      {toast ? (
+        <div className="rounded border border-emerald-700/60 bg-emerald-950/30 px-3 py-2 text-sm text-emerald-300">
+          {toast}
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-bold">New Session</h1>
         <input
@@ -212,6 +389,157 @@ export function NewLogForm() {
             {restTimerSeconds > 0 ? `${restTimerSeconds}s` : "Done"}
           </div>
         ) : null}
+      </div>
+
+      <div className="rounded-lg border border-slate-800 p-3">
+        <p className="mb-2 text-sm font-medium text-slate-200">Quick Log</p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={() => void handleQuickLog("Push-up", 10)}
+            className="rounded bg-black px-3 py-1.5 text-xs text-white disabled:opacity-50"
+          >
+            Push-up 10 reps
+          </button>
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={() => void handleQuickLog("Bodyweight Squat", 15)}
+            className="rounded bg-black px-3 py-1.5 text-xs text-white disabled:opacity-50"
+          >
+            Squat 15 reps
+          </button>
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={() => void handleQuickLog("Pull-up", 5)}
+            className="rounded bg-black px-3 py-1.5 text-xs text-white disabled:opacity-50"
+          >
+            Pull-up 5 reps
+          </button>
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={() => void handleRepeatLastSet()}
+            className="rounded border border-slate-700 px-3 py-1.5 text-xs text-slate-200 disabled:opacity-50"
+          >
+            Repeat last set
+          </button>
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={() => void handleRepeatLast()}
+            className="rounded border border-slate-700 px-3 py-1.5 text-xs text-slate-200 disabled:opacity-50"
+          >
+            Repeat last log
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-slate-800 p-3">
+        <p className="mb-2 text-sm font-medium text-slate-200">Last Set Draft</p>
+        <div className="grid gap-2 md:grid-cols-5">
+          <select
+            value={draftExerciseId}
+            onChange={(event) => setDraftExerciseId(event.target.value)}
+            className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-sm"
+          >
+            <option value="">Select exercise</option>
+            {exercises.map((exercise) => (
+              <option key={exercise.id} value={exercise.id}>
+                {exercise.name}
+              </option>
+            ))}
+          </select>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setDraftReps((prev) => Math.max(0, prev - 1))}
+              className="rounded border border-slate-700 px-2"
+            >
+              -1
+            </button>
+            <input
+              type="number"
+              value={draftReps}
+              min={0}
+              max={500}
+              onChange={(event) => setDraftReps(Math.max(0, Number(event.target.value) || 0))}
+              className="w-full rounded border border-slate-700 bg-slate-900 px-2 py-1 text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => setDraftReps((prev) => Math.min(500, prev + 1))}
+              className="rounded border border-slate-700 px-2"
+            >
+              +1
+            </button>
+          </div>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() =>
+                setDraftWeightKg((prev) => {
+                  const base = typeof prev === "number" ? prev : 0;
+                  return Math.max(0, Number((base - 2.5).toFixed(1)));
+                })
+              }
+              className="rounded border border-slate-700 px-2"
+            >
+              -2.5
+            </button>
+            <input
+              type="number"
+              step={0.5}
+              min={0}
+              max={1000}
+              value={draftWeightKg}
+              placeholder="kg"
+              onChange={(event) =>
+                setDraftWeightKg(event.target.value === "" ? "" : Math.max(0, Number(event.target.value)))
+              }
+              className="w-full rounded border border-slate-700 bg-slate-900 px-2 py-1 text-sm"
+            />
+            <button
+              type="button"
+              onClick={() =>
+                setDraftWeightKg((prev) => {
+                  const base = typeof prev === "number" ? prev : 0;
+                  return Number((base + 2.5).toFixed(1));
+                })
+              }
+              className="rounded border border-slate-700 px-2"
+            >
+              +2.5
+            </button>
+          </div>
+          <button
+            type="button"
+            disabled={isSaving}
+            onClick={() => void handleSaveDraftSet()}
+            className="rounded bg-black px-3 py-1.5 text-xs text-white disabled:opacity-50"
+          >
+            Save Draft Set
+          </button>
+        </div>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {draftRecentSets.map((set) => (
+            <button
+              key={`${set.exerciseId}-${set.updatedAt}`}
+              type="button"
+              onClick={() => {
+                if (set.exerciseId !== "unknown") setDraftExerciseId(set.exerciseId);
+                setDraftReps(set.reps);
+                setDraftWeightKg(typeof set.weightKg === "number" ? set.weightKg : "");
+              }}
+              className="rounded border border-slate-700 px-2 py-1 text-xs text-slate-300"
+            >
+              {set.exerciseName ?? "Unknown"} {set.reps} reps
+              {typeof set.weightKg === "number" ? ` / ${set.weightKg}kg` : ""}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="rounded-lg border border-slate-800 p-3">
@@ -292,6 +620,53 @@ export function NewLogForm() {
                   }
                   className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-sm"
                 />
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateSet(
+                        block.exerciseId,
+                        setIndex,
+                        "weightKg",
+                        Math.max(0, Number(((typeof set.weightKg === "number" ? set.weightKg : 0) - 2.5).toFixed(1)))
+                      )
+                    }
+                    className="rounded border border-slate-700 px-2"
+                  >
+                    -2.5
+                  </button>
+                  <input
+                    type="number"
+                    step={0.5}
+                    min={0}
+                    max={1000}
+                    placeholder="Weight kg"
+                    value={set.weightKg}
+                    onChange={(event) =>
+                      updateSet(
+                        block.exerciseId,
+                        setIndex,
+                        "weightKg",
+                        event.target.value === "" ? "" : Math.max(0, Number(event.target.value))
+                      )
+                    }
+                    className="w-full rounded border border-slate-700 bg-slate-900 px-2 py-1 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      updateSet(
+                        block.exerciseId,
+                        setIndex,
+                        "weightKg",
+                        Number(((typeof set.weightKg === "number" ? set.weightKg : 0) + 2.5).toFixed(1))
+                      )
+                    }
+                    className="rounded border border-slate-700 px-2"
+                  >
+                    +2.5
+                  </button>
+                </div>
                 <input
                   type="number"
                   min={0}
@@ -344,9 +719,16 @@ export function NewLogForm() {
         type="button"
         onClick={saveLog}
         disabled={isSaving}
-        className="rounded bg-emerald-600 px-3 py-2 text-sm text-white disabled:opacity-50"
+        className="rounded bg-black px-3 py-2 text-sm text-white disabled:opacity-50"
       >
         {isSaving ? "Saving..." : "Save Session"}
+      </button>
+      <button
+        type="button"
+        onClick={() => router.push("/")}
+        className="ml-2 rounded border border-slate-700 px-3 py-2 text-sm text-slate-200"
+      >
+        Back to Dashboard
       </button>
     </section>
   );

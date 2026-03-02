@@ -41,13 +41,13 @@ export default async function ExercisesPage({
           placeholder="Search by exercise or purpose..."
           className="w-full rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
         />
-        <div className="flex flex-wrap gap-2">
+        <div className="inline-flex flex-wrap rounded border border-slate-700 p-1">
           <button
             type="submit"
             name="category"
             value=""
             className={`rounded px-3 py-1 text-xs ${
-              category === "" ? "bg-slate-700" : "border border-slate-700"
+              category === "" ? "bg-black text-white" : "text-slate-300"
             }`}
           >
             all
@@ -59,7 +59,7 @@ export default async function ExercisesPage({
               name="category"
               value={item}
               className={`rounded px-3 py-1 text-xs ${
-                category === item ? "bg-slate-700" : "border border-slate-700"
+                category === item ? "bg-black text-white" : "text-slate-300"
               }`}
             >
               {item}
