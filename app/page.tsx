@@ -4,6 +4,8 @@ import { PageTabs } from "@/components/PageTabs";
 import { getUserIdFromCookieStore } from "@/lib/auth";
 import { isPremium } from "@/lib/entitlements";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const userId = await getUserIdFromCookieStore();
   const premium = userId ? await isPremium(userId) : false;
