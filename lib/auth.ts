@@ -1,16 +1,24 @@
 import { randomBytes, randomUUID, scryptSync, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
-import { env } from "@/lib/env";
 import { getPrisma } from "@/lib/prisma";
 
 const AUTH_COOKIE = "ta_session";
 const AUTH_DAYS = 30;
 
-// ✅ import 時に評価しない。必要な時にだけ確認する
-function assertDbUrl() {
-  if (!env.DATABASE_URL) {
-    throw new Error("DATABASE_URL is required.");
+export function assertDbUrl() {
+  const url = process.env.DATABASE_URL;
+  const isBuildPhase = process.env.NEXT_PHASE === "phase-production-build";
+
+  if (!url) {
+    if (isBuildPhase) {
+      console.warn("DATABASE_URL missing during build phase — skipping DB assertion.");
+      return;
+    }
+
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("DATABASE_URL is required.");
+    }
   }
 }
 

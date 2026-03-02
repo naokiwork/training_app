@@ -29,14 +29,9 @@ function createPrismaClient() {
 }
 
 export function getPrisma() {
-  const globalForPrisma = globalThis as unknown as {
-    prisma: PrismaClient | undefined;
-  };
-
-  return globalForPrisma.prisma ?? createPrismaClient();
-}
-
-if (process.env.NODE_ENV !== "production") {
-  (globalThis as unknown as { prisma: PrismaClient | undefined }).prisma = getPrisma();
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = createPrismaClient();
+  }
+  return globalForPrisma.prisma;
 }
 
