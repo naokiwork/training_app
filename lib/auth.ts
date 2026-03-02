@@ -32,8 +32,7 @@ function createSessionToken() {
 }
 
 export async function registerUser(email: string, password: string) {
-  // assertDbUrl(); // API disabled
-  throw new Error("Auth is disabled");
+  assertDbUrl();
   const normalized = email.trim().toLowerCase();
   const passwordHash = hashPassword(password);
   return getPrisma().user.create({
@@ -43,8 +42,7 @@ export async function registerUser(email: string, password: string) {
 }
 
 export async function loginUser(email: string, password: string) {
-  // assertDbUrl(); // API disabled
-  throw new Error("Auth is disabled");
+  assertDbUrl();
   const normalized = email.trim().toLowerCase();
   const user = await getPrisma().user.findUnique({ where: { email: normalized } });
   if (!user) return null;
@@ -60,8 +58,7 @@ export async function loginUser(email: string, password: string) {
 }
 
 export async function getUserIdFromRequest(request: NextRequest) {
-  // assertDbUrl(); // API disabled
-  return null;
+  assertDbUrl();
   const token = request.cookies.get(AUTH_COOKIE)?.value;
   if (!token) return null;
   const session = await getPrisma().authSession.findUnique({
@@ -69,7 +66,7 @@ export async function getUserIdFromRequest(request: NextRequest) {
     select: { userId: true, expiresAt: true },
   });
   if (!session) return null;
-  if (session.expiresAt.getTime() < Date.now()) {
+  if (session!.expiresAt.getTime() < Date.now()) {
     await getPrisma().authSession.delete({ where: { token } }).catch(() => {});
     return null;
   }
@@ -77,8 +74,7 @@ export async function getUserIdFromRequest(request: NextRequest) {
 }
 
 export async function getUserIdFromCookieStore() {
-  // assertDbUrl(); // API disabled
-  return null;
+  assertDbUrl();
   const cookieStore = await cookies();
   const token = cookieStore.get(AUTH_COOKIE)?.value;
   if (!token) return null;
@@ -87,7 +83,7 @@ export async function getUserIdFromCookieStore() {
     select: { userId: true, expiresAt: true },
   });
   if (!session) return null;
-  if (session.expiresAt.getTime() < Date.now()) {
+  if (session!.expiresAt.getTime() < Date.now()) {
     await getPrisma().authSession.delete({ where: { token } }).catch(() => {});
     return null;
   }
@@ -95,8 +91,7 @@ export async function getUserIdFromCookieStore() {
 }
 
 export async function logoutByToken(token: string) {
-  // assertDbUrl(); // API disabled
-  throw new Error("Auth is disabled");
+  assertDbUrl();
   await getPrisma().authSession.deleteMany({ where: { token } });
 }
 
