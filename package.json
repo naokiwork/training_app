@@ -27,7 +27,7 @@
   "dependencies": {
     "@opennextjs/cloudflare": "^1.17.1",
     "@prisma/adapter-d1": "^7.4.2",
-    "@prisma/client": "6.16.2",
+    "@prisma/client": "7.4.2",
     "idb": "^8.0.3",
     "next": "^16.1.6",
     "prisma": "6.16.2",
