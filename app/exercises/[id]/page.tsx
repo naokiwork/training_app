@@ -30,6 +30,16 @@ export default async function ExerciseDetailPage({
         </article>
 
         <article className="rounded border border-slate-800 p-4">
+          <h2 className="mb-1 font-semibold">Instruction (Step-by-step)</h2>
+          <p className="whitespace-pre-line text-sm text-slate-300">{exercise.instruction ?? "Not set yet."}</p>
+        </article>
+
+        <article className="rounded border border-slate-800 p-4">
+          <h2 className="mb-1 font-semibold">Advice</h2>
+          <p className="whitespace-pre-line text-sm text-slate-300">{exercise.advice ?? "Not set yet."}</p>
+        </article>
+
+        <article className="rounded border border-slate-800 p-4">
           <h2 className="mb-1 font-semibold">Common Mistakes</h2>
           <p className="text-sm text-slate-300">{exercise.mistakes ?? "Not set yet."}</p>
         </article>
