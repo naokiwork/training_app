@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AUTH_COOKIE, loginUser } from "@/lib/auth";
 import { allowRequest, getRateLimitKeyFromRequestLike } from "@/lib/rate-limit";
 import { AuthSchema } from "@/lib/schemas";
+
+// これを明示（Prisma を使うなら Node.js 前提）
+export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,6 +17,9 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid input." }, { status: 400 });
     }
+
+    // ✅ 重要：ここで初めて読み込む（ビルド時 import を避ける）
+    const { AUTH_COOKIE, loginUser } = await import("@/lib/auth");
 
     const result = await loginUser(parsed.data.email, parsed.data.password);
     if (!result) {
