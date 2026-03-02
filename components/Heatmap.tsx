@@ -65,7 +65,7 @@ export function Heatmap() {
   return (
     <div className="space-y-2 rounded border border-slate-800 p-4">
       <h2 className="text-sm font-semibold text-slate-200">Training Contributions (last 84 days)</h2>
-      <div className="grid grid-cols-14 gap-1">
+      <div className="grid grid-cols-7 gap-1">
         {data.map((item) => {
           const level = getLevel(item.sets, max);
           return (
