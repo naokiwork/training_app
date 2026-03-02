@@ -32,7 +32,8 @@ function createSessionToken() {
 }
 
 export async function registerUser(email: string, password: string) {
-  assertDbUrl();
+  // assertDbUrl(); // API disabled
+  throw new Error("Auth is disabled");
   const normalized = email.trim().toLowerCase();
   const passwordHash = hashPassword(password);
   return getPrisma().user.create({
@@ -42,7 +43,8 @@ export async function registerUser(email: string, password: string) {
 }
 
 export async function loginUser(email: string, password: string) {
-  assertDbUrl();
+  // assertDbUrl(); // API disabled
+  throw new Error("Auth is disabled");
   const normalized = email.trim().toLowerCase();
   const user = await getPrisma().user.findUnique({ where: { email: normalized } });
   if (!user) return null;
@@ -58,7 +60,8 @@ export async function loginUser(email: string, password: string) {
 }
 
 export async function getUserIdFromRequest(request: NextRequest) {
-  assertDbUrl();
+  // assertDbUrl(); // API disabled
+  return null;
   const token = request.cookies.get(AUTH_COOKIE)?.value;
   if (!token) return null;
   const session = await getPrisma().authSession.findUnique({
@@ -74,7 +77,8 @@ export async function getUserIdFromRequest(request: NextRequest) {
 }
 
 export async function getUserIdFromCookieStore() {
-  assertDbUrl();
+  // assertDbUrl(); // API disabled
+  return null;
   const cookieStore = await cookies();
   const token = cookieStore.get(AUTH_COOKIE)?.value;
   if (!token) return null;
@@ -91,7 +95,8 @@ export async function getUserIdFromCookieStore() {
 }
 
 export async function logoutByToken(token: string) {
-  assertDbUrl();
+  // assertDbUrl(); // API disabled
+  throw new Error("Auth is disabled");
   await getPrisma().authSession.deleteMany({ where: { token } });
 }
 
