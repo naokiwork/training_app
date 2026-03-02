@@ -15,6 +15,12 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: |
+          test -z "$(rg -n 'export async function (GET|POST|PUT|PATCH|DELETE)' app/api --glob '**/route.ts' 2>/dev/null)"
+      - run: |
+          test -z "$(rg -n "fetch\(\"/api/|fetch\('/api/" --glob '*.{ts,tsx}' .)"
+      - run: |
+          test -z "$(rg -n 'process\.env' --glob '*.{ts,tsx}' .)"
       - run: npm run lint
       - run: npm run build
       - run: npm audit --audit-level=high

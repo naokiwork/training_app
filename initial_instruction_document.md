@@ -1,6 +1,10 @@
 承知いたしました。では「まず最初に“動く最小版（MVP）”を最短で作る」前提で、Cursorで作りやすく、後から拡張しやすい設計に落とし込みます。
 （結論：記録・解説・プランの3機能は、同じ“Exercise辞書”を共有すると一気に綺麗になります。）
 
+> [!WARNING]
+> Legacy spec. Current implementation policy is no API and no environment variables.
+> Follow `lists_to_refer/no_api_no_env_full_migration_task_document.md` first.
+
 ⸻
 
 まず決めるべき最小アーキテクチャ（おすすめ）

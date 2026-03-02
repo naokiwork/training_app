@@ -1,6 +1,10 @@
 以下に、Cursor にそのまま渡して実装できる前提で、必要作業とコード一式を 1本の Markdown に統合してお渡しいたします。
 このまま BILLING_AND_GATING_IMPLEMENTATION.md などとして保存し、Cursor に共有してくださいませ。
 
+> [!WARNING]
+> Legacy spec. Current implementation policy is no API and no environment variables.
+> Follow `lists_to_refer/no_api_no_env_full_migration_task_document.md` first.
+
 ⸻
 
 
