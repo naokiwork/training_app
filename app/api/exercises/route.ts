@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
   const search = request.nextUrl.searchParams.get("search") ?? "";
   const category = request.nextUrl.searchParams.get("category") ?? "";
 
-  const exercises = await prisma.exercise.findMany({
+  const exercises = await getPrisma().exercise.findMany({
     where: {
       AND: [
         search

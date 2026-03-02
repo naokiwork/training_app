@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { env } from "@/lib/env";
 import { logError, logInfo } from "@/lib/monitor";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -13,7 +13,7 @@ async function resolveUserId(subscription: Stripe.Subscription) {
 
   const customerId =
     typeof subscription.customer === "string" ? subscription.customer : subscription.customer.id;
-  const customer = await prisma.stripeCustomer.findUnique({
+  const customer = await getPrisma().stripeCustomer.findUnique({
     where: { stripeCustomerId: customerId },
     select: { userId: true },
   });
@@ -27,7 +27,7 @@ async function upsertSubscriptionFromEvent(subscription: Stripe.Subscription) {
   const currentPeriodEndUnix = (subscription as unknown as { current_period_end?: number }).current_period_end;
   const trialEndUnix = (subscription as unknown as { trial_end?: number }).trial_end;
   const priceId = subscription.items.data[0]?.price?.id ?? null;
-  await prisma.subscription.upsert({
+  await getPrisma().subscription.upsert({
     where: { userId },
     update: {
       stripeSubscriptionId: subscription.id,
@@ -64,11 +64,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid webhook signature." }, { status: 400 });
   }
 
-  const exists = await prisma.stripeEvent.findUnique({ where: { id: event.id } });
+  const exists = await getPrisma().stripeEvent.findUnique({ where: { id: event.id } });
   if (exists) {
     return NextResponse.json({ received: true });
   }
-  await prisma.stripeEvent.create({
+  await getPrisma().stripeEvent.create({
     data: { id: event.id, type: event.type, created: event.created },
   });
 

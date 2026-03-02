@@ -1,7 +1,7 @@
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 
 export async function getSubscription(userId: string) {
-  return prisma.subscription.findUnique({ where: { userId } });
+  return getPrisma().subscription.findUnique({ where: { userId } });
 }
 
 export async function isPremium(userId: string) {

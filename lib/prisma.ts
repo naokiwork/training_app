@@ -1,40 +1,33 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaD1 } from "@prisma/adapter-d1";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { requireDatabaseUrl, env } from "@/lib/env";
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
+let prismaClient: PrismaClient | null = null;
 
-function createPrismaClient() {
-  try {
-    const { env } = getCloudflareContext();
-    const d1 = (env as unknown as { DB?: ConstructorParameters<typeof PrismaD1>[0] }).DB;
-    if (d1) {
-      const adapter = new PrismaD1(d1);
-      return new PrismaClient({
-        adapter,
-        log: process.env.NODE_ENV === "development" ? ["query", "error"] : ["error"],
-      });
-    }
-  } catch {
-    // Not running in a Cloudflare Worker context.
+export function getPrisma() {
+  if (prismaClient) {
+    return prismaClient;
   }
 
-  return new PrismaClient({
+  requireDatabaseUrl();
+
+  let adapter;
+  try {
+    const { env: cfEnv } = getCloudflareContext();
+    const d1 = (cfEnv as unknown as { DB?: ConstructorParameters<typeof PrismaD1>[0] }).DB;
+    if (d1) {
+      adapter = new PrismaD1(d1);
+    }
+  } catch {
+    // Not running in a Cloudflare Worker context. Fallback to default PrismaClient.
+  }
+
+  prismaClient = new PrismaClient({
+    adapter,
     log: process.env.NODE_ENV === "development" ? ["query", "error"] : ["error"],
   });
+
+  return prismaClient;
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
-
-export function prismaFromCloudflareBinding() {
-  const { env } = getCloudflareContext();
-  const d1 = (env as unknown as { DB: ConstructorParameters<typeof PrismaD1>[0] }).DB;
-  const adapter = new PrismaD1(d1);
-  return new PrismaClient({ adapter });
-}
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-}

@@ -3,7 +3,7 @@ import { getUserIdFromRequest } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { logError, logInfo } from "@/lib/monitor";
 import { getStripe } from "@/lib/stripe";
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,13 +12,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await getPrisma().user.findUnique({
       where: { id: userId },
       select: { email: true },
     });
     if (!user) return NextResponse.json({ error: "User not found." }, { status: 404 });
 
-    const existing = await prisma.stripeCustomer.findUnique({ where: { userId } });
+    const existing = await getPrisma().stripeCustomer.findUnique({ where: { userId } });
     let stripeCustomerId = existing?.stripeCustomerId;
 
     if (!stripeCustomerId) {
@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
         metadata: { userId },
       });
       stripeCustomerId = customer.id;
-      await prisma.stripeCustomer.create({
+      await getPrisma().stripeCustomer.create({
         data: { userId, stripeCustomerId },
       });
     }
