@@ -6,7 +6,13 @@ import { prisma } from "@/lib/prisma";
 
 const AUTH_COOKIE = "ta_session";
 const AUTH_DAYS = 30;
-void env.DATABASE_URL;
+
+// ✅ import 時に評価しない。必要な時にだけ確認する
+function assertDbUrl() {
+  if (!env.DATABASE_URL) {
+    throw new Error("DATABASE_URL is required.");
+  }
+}
 
 function hashPassword(password: string, salt?: string) {
   const usedSalt = salt ?? randomBytes(16).toString("hex");
@@ -26,6 +32,7 @@ function createSessionToken() {
 }
 
 export async function registerUser(email: string, password: string) {
+  assertDbUrl();
   const normalized = email.trim().toLowerCase();
   const passwordHash = hashPassword(password);
   return prisma.user.create({
@@ -35,6 +42,7 @@ export async function registerUser(email: string, password: string) {
 }
 
 export async function loginUser(email: string, password: string) {
+  assertDbUrl();
   const normalized = email.trim().toLowerCase();
   const user = await prisma.user.findUnique({ where: { email: normalized } });
   if (!user) return null;
@@ -50,6 +58,7 @@ export async function loginUser(email: string, password: string) {
 }
 
 export async function getUserIdFromRequest(request: NextRequest) {
+  assertDbUrl();
   const token = request.cookies.get(AUTH_COOKIE)?.value;
   if (!token) return null;
   const session = await prisma.authSession.findUnique({
@@ -65,6 +74,7 @@ export async function getUserIdFromRequest(request: NextRequest) {
 }
 
 export async function getUserIdFromCookieStore() {
+  assertDbUrl();
   const cookieStore = await cookies();
   const token = cookieStore.get(AUTH_COOKIE)?.value;
   if (!token) return null;
@@ -81,6 +91,7 @@ export async function getUserIdFromCookieStore() {
 }
 
 export async function logoutByToken(token: string) {
+  assertDbUrl();
   await prisma.authSession.deleteMany({ where: { token } });
 }
 
