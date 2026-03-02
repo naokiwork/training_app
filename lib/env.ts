@@ -1,5 +1,16 @@
-function getEnv(name: string) {
-  return process.env[name] ?? "";
+export function getEnv(name: string): string | undefined {
+  return process.env[name];
+}
+
+export function requireEnvRuntime(name: string): string {
+  const value = process.env[name];
+  if (!value && process.env.NODE_ENV !== "production") {
+    console.warn(`${name} is not set (build phase safe mode).`);
+  }
+  if (!value && process.env.NODE_ENV === "production") {
+    throw new Error(`${name} is required.`);
+  }
+  return value!;
 }
 
 export const env = {
@@ -11,32 +22,22 @@ export const env = {
 };
 
 export function requireDatabaseUrl() {
-  if (!env.DATABASE_URL) {
-    throw new Error("DATABASE_URL is required.");
-  }
+  return requireEnvRuntime("DATABASE_URL");
 }
 
 export function requireStripeSecretKey() {
-  if (!env.STRIPE_SECRET_KEY) {
-    throw new Error("STRIPE_SECRET_KEY is required.");
-  }
+  return requireEnvRuntime("STRIPE_SECRET_KEY");
 }
 
 export function requireStripeWebhookSecret() {
-  if (!env.STRIPE_WEBHOOK_SECRET) {
-    throw new Error("STRIPE_WEBHOOK_SECRET is required.");
-  }
+  return requireEnvRuntime("STRIPE_WEBHOOK_SECRET");
 }
 
 export function requireStripePriceIdMonthly100JPY() {
-  if (!env.STRIPE_PRICE_ID_MONTHLY_100JPY) {
-    throw new Error("STRIPE_PRICE_ID_MONTHLY_100JPY is required.");
-  }
+  return requireEnvRuntime("STRIPE_PRICE_ID_MONTHLY_100JPY");
 }
 
 export function requireNextPublicAppUrl() {
-  if (!env.NEXT_PUBLIC_APP_URL) {
-    throw new Error("NEXT_PUBLIC_APP_URL is required.");
-  }
+  return requireEnvRuntime("NEXT_PUBLIC_APP_URL");
 }
 
