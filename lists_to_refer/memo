@@ -1,0 +1,17 @@
+ naokionda@Naokis-MacBook-Pro  ~/Git-Hub_repository/training_app   feature/aman  npx wrangler d1 create training-db                                     ✔  4041  00:36:43 
+
+ ⛅️ wrangler 4.54.0 (update available 4.69.0)
+─────────────────────────────────────────────
+✅ Successfully created DB 'training-db' in region APAC
+Created your new D1 database.
+
+To access your new D1 Database in your Worker, add the following snippet to your configuration file:
+{
+  "d1_databases": [
+    {
+      "binding": "training_db",
+      "database_name": "training-db",
+      "database_id": "e46cef06-95bf-4bca-8e98-409a0d9df008"
+    }
+  ]
+}
