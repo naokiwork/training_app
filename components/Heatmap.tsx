@@ -37,7 +37,7 @@ export function Heatmap() {
     async function load() {
       try {
         setError("");
-        const rows = (await buildHeatmap(84)) as Contribution[];
+        const rows = (await buildHeatmap(365)) as Contribution[];
         setData(rows);
       } catch {
         setError("Failed to load heatmap.");
@@ -61,12 +61,21 @@ export function Heatmap() {
   }
 
   const max = Math.max(...data.map((item) => item.sets), 0);
+  const firstDate = new Date(`${data[0].date}T00:00:00`);
+  const leadingEmptyCells = firstDate.getDay();
+  const cells: Array<Contribution | null> = [
+    ...Array.from({ length: leadingEmptyCells }, () => null),
+    ...data,
+  ];
 
   return (
     <div className="space-y-2 rounded border border-slate-800 p-4">
-      <h2 className="text-sm font-semibold text-slate-200">Training Contributions (last 84 days)</h2>
-      <div className="grid grid-cols-7 gap-1">
-        {data.map((item) => {
+      <h2 className="text-sm font-semibold text-slate-200">Training Contributions (last 365 days)</h2>
+      <div className="grid auto-cols-max grid-flow-col grid-rows-7 gap-px">
+        {cells.map((item, index) => {
+          if (!item) {
+            return <div key={`empty-${index}`} className="h-3 w-3" aria-hidden />;
+          }
           const level = getLevel(item.sets, max);
           return (
             <button
@@ -74,7 +83,7 @@ export function Heatmap() {
               type="button"
               onClick={() => router.push(`/log?date=${item.date}`)}
               title={`${item.date}: ${item.sets} sets`}
-              className={`h-4 w-4 rounded ${colors[level]} hover:ring-1 hover:ring-slate-200`}
+              className={`h-3 w-3 rounded-[2px] ${colors[level]} hover:ring-1 hover:ring-slate-200`}
               aria-label={`${item.date}: ${item.sets} sets`}
             />
           );
