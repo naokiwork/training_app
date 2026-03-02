@@ -43,7 +43,6 @@ export function NewLogForm() {
   const router = useRouter();
   const [date, setDate] = useState(today());
   const [painFlag, setPainFlag] = useState(false);
-  const [exerciseSearch, setExerciseSearch] = useState("");
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [blocks, setBlocks] = useState<ExerciseBlock[]>([]);
   const [error, setError] = useState("");
@@ -57,10 +56,7 @@ export function NewLogForm() {
     async function loadExercises() {
       try {
         setLoadError("");
-        const response = await fetch(
-          `/api/exercises?search=${encodeURIComponent(exerciseSearch)}`,
-          { signal: controller.signal }
-        );
+        const response = await fetch("/api/exercises", { signal: controller.signal });
         if (!response.ok) {
           setLoadError("Failed to load exercises.");
           return;
@@ -74,7 +70,7 @@ export function NewLogForm() {
     }
     loadExercises();
     return () => controller.abort();
-  }, [exerciseSearch]);
+  }, []);
 
   const totalSets = useMemo(
     () => blocks.reduce((sum, block) => sum + block.sets.length, 0),
@@ -217,13 +213,7 @@ export function NewLogForm() {
 
       <div className="rounded-lg border border-slate-800 p-3">
         <label className="mb-2 block text-sm text-slate-300">Exercise picker</label>
-        <input
-          value={exerciseSearch}
-          onChange={(event) => setExerciseSearch(event.target.value)}
-          placeholder="Search exercises..."
-          className="mb-3 w-full rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
-        />
-        <div className="flex flex-wrap gap-2">
+        <div className="grid gap-2 max-h-48 overflow-y-auto md:grid-cols-3">
           {exercises.map((exercise) => (
             <button
               key={exercise.id}
