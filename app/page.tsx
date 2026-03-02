@@ -1,14 +1,11 @@
 import { Heatmap } from "@/components/Heatmap";
 import { MetadataRow } from "@/components/MetadataRow";
 import { PageTabs } from "@/components/PageTabs";
-import { getUserIdFromCookieStore } from "@/lib/auth";
-import { isPremium } from "@/lib/entitlements";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const userId = await getUserIdFromCookieStore();
-  const premium = userId ? await isPremium(userId) : false;
+  const premium = false;
 
   return (
     <section className="space-y-4">
@@ -26,7 +23,7 @@ export default async function HomePage() {
       </p>
       {!premium ? (
         <p className="rounded border border-amber-700/60 bg-amber-950/30 p-3 text-xs text-amber-300">
-          Free plan active (recent history only). Upgrade at <a className="underline" href="/pricing">/pricing</a>.
+          Free plan active (local-first mode).
         </p>
       ) : null}
       <MetadataRow

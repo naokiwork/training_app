@@ -2,12 +2,18 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { cacheExercises, getSessionDetail, upsertSessionWithDetails } from "@/lib/localdb/repo";
+import { exercises as seedExercises } from "@/data/exercises";
+import {
+  cacheExercises,
+  getSessionDetail,
+  listCachedExercises,
+  upsertSessionWithDetails,
+} from "@/lib/localdb/repo";
 
 type Exercise = {
   id: string;
   name: string;
-  category: string | null;
+  category?: string | null;
 };
 
 type SetRow = {
@@ -63,20 +69,28 @@ export function EditLogForm({ sessionId }: { sessionId: string }) {
   }, [sessionId]);
 
   useEffect(() => {
-    const controller = new AbortController();
     async function loadExercises() {
-      const response = await fetch(
-        `/api/exercises?search=${encodeURIComponent(exerciseSearch)}`,
-        { signal: controller.signal }
-      );
-      if (!response.ok) return;
-      const data = (await response.json()) as Exercise[];
-      setExercises(data);
-      await cacheExercises(data);
+      const cached = await listCachedExercises();
+      if (cached.length > 0) {
+        setExercises(cached);
+        return;
+      }
+      const fallback = seedExercises.map((exercise) => ({
+        id: exercise.id,
+        name: exercise.name,
+        category: exercise.category,
+      }));
+      await cacheExercises(fallback);
+      setExercises(fallback);
     }
-    loadExercises();
-    return () => controller.abort();
-  }, [exerciseSearch]);
+    void loadExercises();
+  }, []);
+
+  const filteredExercises = useMemo(() => {
+    const normalized = exerciseSearch.trim().toLowerCase();
+    if (!normalized) return exercises;
+    return exercises.filter((exercise) => exercise.name.toLowerCase().includes(normalized));
+  }, [exerciseSearch, exercises]);
 
   const totalSets = useMemo(
     () => blocks.reduce((sum, block) => sum + block.sets.length, 0),
@@ -228,7 +242,7 @@ export function EditLogForm({ sessionId }: { sessionId: string }) {
           className="mb-3 w-full rounded border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
         />
         <div className="flex flex-wrap gap-2">
-          {exercises.map((exercise) => (
+          {filteredExercises.map((exercise) => (
             <button
               key={exercise.id}
               type="button"

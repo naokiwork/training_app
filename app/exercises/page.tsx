@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PageTabs } from "@/components/PageTabs";
-import { getPrisma } from "@/lib/prisma";
+import { exercises as allExercises } from "@/data/exercises";
 
 const categories = ["push", "pull", "legs", "core"];
 
@@ -12,22 +12,15 @@ export default async function ExercisesPage({
   const params = (await searchParams) ?? {};
   const search = params.search ?? "";
   const category = params.category ?? "";
+  const normalizedSearch = search.trim().toLowerCase();
 
-  const exercises = await getPrisma().exercise.findMany({
-    where: {
-      AND: [
-        search
-          ? {
-              OR: [
-                { name: { contains: search } },
-                { purpose: { contains: search } },
-              ],
-            }
-          : {},
-        category ? { category } : {},
-      ],
-    },
-    orderBy: { name: "asc" },
+  const exercises = allExercises.filter((exercise) => {
+    const matchesSearch =
+      normalizedSearch.length === 0 ||
+      exercise.name.toLowerCase().includes(normalizedSearch) ||
+      (exercise.purpose ?? "").toLowerCase().includes(normalizedSearch);
+    const matchesCategory = !category || exercise.category === category;
+    return matchesSearch && matchesCategory;
   });
 
   return (
