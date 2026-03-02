@@ -6,7 +6,7 @@ import { MetadataRow } from "@/components/MetadataRow";
 import { PageTabs } from "@/components/PageTabs";
 import { SidebarInfo } from "@/components/SidebarInfo";
 import { StatusBadge } from "@/components/StatusBadge";
-import { listSessionDetailsByDate } from "@/lib/localdb/repo";
+import { listSessionDetailsByDate, repeatLastSession, saveQuickSession } from "@/lib/localdb/repo";
 import type { LocalSessionDetail } from "@/lib/localdb/types";
 import { SessionActions } from "./SessionActions";
 
@@ -39,6 +39,7 @@ export function LogPageClient({
   const [sessions, setSessions] = useState<LocalSessionDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [quickSaving, setQuickSaving] = useState(false);
 
   const canReadDate = premium || selectedDate >= getFreeWindowStart();
 
@@ -81,6 +82,36 @@ export function LogPageClient({
       ),
     [sessions]
   );
+
+  async function handleQuickLog(exerciseId: string, reps: number) {
+    setQuickSaving(true);
+    setError("");
+    try {
+      await saveQuickSession(exerciseId, reps, selectedDate);
+      await reloadSessions(selectedDate);
+    } catch {
+      setError("Quick log failed.");
+    } finally {
+      setQuickSaving(false);
+    }
+  }
+
+  async function handleRepeatLast() {
+    setQuickSaving(true);
+    setError("");
+    try {
+      const result = await repeatLastSession(selectedDate);
+      if (!result) {
+        setError("No previous log to repeat.");
+      } else {
+        await reloadSessions(selectedDate);
+      }
+    } catch {
+      setError("Repeat last log failed.");
+    } finally {
+      setQuickSaving(false);
+    }
+  }
 
   return (
     <section className="space-y-4">
@@ -154,8 +185,47 @@ export function LogPageClient({
           ) : null}
           {error ? <div className="rounded-lg border border-rose-800 p-4 text-rose-300">{error}</div> : null}
           {!loading && !error && canReadDate && sessions.length === 0 ? (
-            <div className="rounded-lg border border-slate-800 p-4 text-slate-300">
-              No sessions found for this date.
+            <div className="space-y-3 rounded-lg border border-slate-800 p-4 text-slate-300">
+              <p className="font-medium">Start by logging your first workout</p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={quickSaving}
+                  onClick={() => void handleQuickLog("push-up", 10)}
+                  className="rounded bg-black px-3 py-1.5 text-xs text-white disabled:opacity-50"
+                >
+                  Push-up 10 reps
+                </button>
+                <button
+                  type="button"
+                  disabled={quickSaving}
+                  onClick={() => void handleQuickLog("bodyweight-squat", 15)}
+                  className="rounded bg-black px-3 py-1.5 text-xs text-white disabled:opacity-50"
+                >
+                  Squat 15 reps
+                </button>
+                <button
+                  type="button"
+                  disabled={quickSaving}
+                  onClick={() => void handleQuickLog("pull-up", 5)}
+                  className="rounded bg-black px-3 py-1.5 text-xs text-white disabled:opacity-50"
+                >
+                  Pull-up 5 reps
+                </button>
+                <button
+                  type="button"
+                  disabled={quickSaving}
+                  onClick={() => void handleRepeatLast()}
+                  className="rounded border border-slate-700 px-3 py-1.5 text-xs text-slate-200 disabled:opacity-50"
+                >
+                  Repeat Last Log
+                </button>
+              </div>
+              <ol className="space-y-1 text-xs text-slate-400">
+                <li>1. Tap a quick button to save instantly.</li>
+                <li>2. Review details in today&apos;s log list.</li>
+                <li>3. Use Edit later when you want fine control.</li>
+              </ol>
             </div>
           ) : null}
           {!loading && !error && canReadDate

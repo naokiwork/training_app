@@ -21,9 +21,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <Link href="/log">Log</Link>
               <Link href="/exercises">Exercises</Link>
               <Link href="/plans">Plans</Link>
+              <Link href="/settings">Settings</Link>
               <Link
                 href="/log/new"
-                className="rounded bg-emerald-600 px-3 py-1 font-medium text-white"
+                className="rounded bg-black px-3 py-1 font-medium text-white"
               >
                 New Log
               </Link>
