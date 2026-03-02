@@ -5,6 +5,8 @@ import { getUserIdFromCookieStore } from "@/lib/auth";
 import { isPremium } from "@/lib/entitlements";
 import { plans } from "@/data/plans";
 
+export const dynamic = "force-dynamic";
+
 export default async function PlansPage() {
   const userId = await getUserIdFromCookieStore();
   const premium = userId ? await isPremium(userId) : false;
