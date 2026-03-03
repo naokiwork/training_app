@@ -21,6 +21,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               <Link href="/log">Log</Link>
               <Link href="/exercises">Exercises</Link>
               <Link href="/plans">Plans</Link>
+              <Link href="/courses">Courses</Link>
               <Link href="/settings">Settings</Link>
               <Link
                 href="/log/new"
