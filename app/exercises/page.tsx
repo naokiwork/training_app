@@ -31,6 +31,7 @@ export default async function ExercisesPage({
           { href: "/log", label: "Log" },
           { href: "/exercises", label: "Exercises" },
           { href: "/plans", label: "Plans" },
+          { href: "/courses", label: "Courses" },
         ]}
       />
       <h1 className="text-2xl font-bold">Exercise Guide</h1>

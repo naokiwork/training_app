@@ -39,6 +39,7 @@ export function DashboardClient() {
           { href: "/log", label: "Log" },
           { href: "/exercises", label: "Exercises" },
           { href: "/plans", label: "Plans" },
+          { href: "/courses", label: "Courses" },
         ]}
       />
 
