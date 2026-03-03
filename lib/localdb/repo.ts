@@ -1,5 +1,5 @@
 import { getLocalDb } from "@/lib/localdb/db";
-import type {
+import {
   LocalExerciseCache,
   LocalSession,
   LocalSessionDetail,
@@ -7,6 +7,7 @@ import type {
   LocalSet,
   UpsertLocalSessionInput,
 } from "@/lib/localdb/types";
+import { CourseDayTemplate, getCourseById } from "@/data/courses";
 import { calculateCurrentStreak } from "@/core/streak";
 import { countThisWeek, isTodayLogged } from "@/core/weeklyStats";
 
@@ -396,4 +397,25 @@ export async function listRecentSetDrafts(limit = 3): Promise<LastSetDraft[]> {
       updatedAt: set.updatedAt,
     };
   });
+}
+
+export async function getCourseDayExercises(courseId: string, dayIndex: number): Promise<{
+  exerciseId: string;
+  exerciseName: string;
+  sets: number;
+  repRange: string;
+}[]> {
+  const course = getCourseById(courseId);
+  if (!course || !course.days[dayIndex]) return [];
+
+  const dayTemplate = course.days[dayIndex];
+  const cachedExercises = await listCachedExercises();
+  const exerciseMap = new Map(cachedExercises.map(ex => [ex.id, ex]));
+
+  return dayTemplate.items.map(item => ({
+    exerciseId: item.exerciseId || cachedExercises.find(ex => ex.name === item.exerciseName)?.id || createId(),
+    exerciseName: item.exerciseName,
+    sets: item.sets,
+    repRange: item.repRange,
+  }));
 }

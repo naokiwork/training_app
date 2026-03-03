@@ -4,6 +4,8 @@ import {
   LocalSession,
   LocalSessionExercise,
   LocalSet,
+  CourseEnrollment,
+  CourseProgress,
 } from "@/lib/localdb/types";
 
 type MetaValue = {
@@ -46,10 +48,31 @@ interface TrainingLocalDbSchema extends DBSchema {
     key: string;
     value: MetaValue;
   };
+  courseEnrollments: {
+    key: string;
+    value: CourseEnrollment;
+    indexes: {
+      byCourseId: string;
+      byStartedAt: string;
+      byUpdatedAt: number;
+    };
+  };
+  courseProgresses: {
+    key: string;
+    value: CourseProgress;
+    indexes: {
+      byEnrollmentId: string;
+      bySessionId: string;
+      byCompletedAt: number;
+    };
+  };
 }
 
 const DB_NAME = "training-local-db";
-const DB_VERSION = 1;
+export const runtime = "nodejs";
+
+const DB_VERSION = 2;
+
 
 let dbPromise: Promise<IDBPDatabase<TrainingLocalDbSchema>> | null = null;
 
@@ -77,6 +100,18 @@ export function getLocalDb() {
         }
         if (!db.objectStoreNames.contains("meta")) {
           db.createObjectStore("meta", { keyPath: "key" });
+        }
+        if (!db.objectStoreNames.contains("courseEnrollments")) {
+          const store = db.createObjectStore("courseEnrollments", { keyPath: "id" });
+          store.createIndex("byCourseId", "courseId");
+          store.createIndex("byStartedAt", "startedAt");
+          store.createIndex("byUpdatedAt", "updatedAt");
+        }
+        if (!db.objectStoreNames.contains("courseProgresses")) {
+          const store = db.createObjectStore("courseProgresses", { keyPath: "id" });
+          store.createIndex("byEnrollmentId", "enrollmentId");
+          store.createIndex("bySessionId", "sessionId");
+          store.createIndex("byCompletedAt", "completedAt");
         }
       },
     });
