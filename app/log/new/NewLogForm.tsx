@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { exercises as seedExercises } from "@/data/exercises";
+import { courses } from "@/data/courses";
 import {
   cacheExercises,
   getLastSetDraft,
@@ -12,6 +13,7 @@ import {
   saveLastSetDraft,
   saveQuickSession,
   upsertSessionWithDetails,
+  getCourseDayExercises,
 } from "@/lib/localdb/repo";
 
 type Exercise = {
@@ -57,6 +59,8 @@ export function NewLogForm() {
   const [painFlag, setPainFlag] = useState(false);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [blocks, setBlocks] = useState<ExerciseBlock[]>([]);
+  const [selectedCourseId, setSelectedCourseId] = useState("");
+  const [selectedDayIndex, setSelectedDayIndex] = useState<number | "">("");
   const [error, setError] = useState("");
   const [loadError, setLoadError] = useState("");
   const [toast, setToast] = useState("");
@@ -101,13 +105,28 @@ export function NewLogForm() {
           setDraftReps(lastDraft.reps);
           setDraftWeightKg(typeof lastDraft.weightKg === "number" ? lastDraft.weightKg : "");
         }
-        setDraftRecentSets(recent);
-      } catch {
-        setLoadError("Failed to load exercises.");
+          setDraftRecentSets(recent);
+        } catch {
+          setLoadError("Failed to load exercises.");
+        }
       }
-    }
     void loadInitial();
   }, []);
+
+  useEffect(() => {
+    if (selectedCourseId && typeof selectedDayIndex === "number") {
+      void (async () => {
+        const courseDayExercises = await getCourseDayExercises(selectedCourseId, selectedDayIndex);
+        setBlocks(courseDayExercises.map(item => ({
+          exerciseId: item.exerciseId,
+          exerciseName: item.exerciseName,
+          sets: Array(item.sets).fill(createDefaultSet())
+        })));
+      })();
+    } else {
+      setBlocks([]);
+    }
+  }, [selectedCourseId, selectedDayIndex]);
 
   const totalSets = useMemo(
     () => blocks.reduce((sum, block) => sum + block.sets.length, 0),
@@ -434,6 +453,43 @@ export function NewLogForm() {
           >
             Repeat last log
           </button>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-slate-800 p-3">
+        <p className="mb-2 text-sm font-medium text-slate-200">Start from Course</p>
+        <div className="grid gap-2 md:grid-cols-2">
+          <select
+            value={selectedCourseId}
+            onChange={(e) => {
+              setSelectedCourseId(e.target.value);
+              setSelectedDayIndex(""); // Reset day when course changes
+            }}
+            className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-sm"
+          >
+            <option value="">Select course</option>
+            {courses.map((course) => (
+              <option key={course.id} value={course.id}>
+                {course.title}
+              </option>
+            ))}
+          </select>
+          <select
+            value={selectedDayIndex}
+            onChange={(e) => setSelectedDayIndex(Number(e.target.value))}
+            className="rounded border border-slate-700 bg-slate-900 px-2 py-1 text-sm"
+            disabled={!selectedCourseId}
+          >
+            <option value="">Select day</option>
+            {selectedCourseId &&
+              courses
+                .find((course) => course.id === selectedCourseId)
+                ?.days.map((day, index) => (
+                  <option key={index} value={index}>
+                    {day.day}
+                  </option>
+                ))}
+          </select>
         </div>
       </div>
 
