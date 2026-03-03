@@ -1,4 +1,4 @@
-erDiagram
+'''erDiagram
     sessions ||--o{ sessionExercises : "has"
     sessionExercises ||--o{ sets : "has"
     sessionExercises }o--|| exercises : "references"
@@ -44,4 +44,4 @@ erDiagram
     meta {
         string key PK
         any value
-    }
+    }'''
