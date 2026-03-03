@@ -1,4 +1,5 @@
-'''erDiagram
+```mermaid
+erDiagram
     sessions ||--o{ sessionExercises : "has"
     sessionExercises ||--o{ sets : "has"
     sessionExercises }o--|| exercises : "references"
@@ -44,4 +45,4 @@
     meta {
         string key PK
         any value
-    }'''
+    }
